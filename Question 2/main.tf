@@ -25,7 +25,7 @@ resource "aws_key_pair" "Rudra_Singh_key" {
 resource "aws_security_group" "Rudra_Singh_sg" {
   name        = "Rudra_Singh_sg"
   description = "Allow SSH and HTTP"
-  vpc_id      = "vpc-0b0bd10163043375d"  # <-- Replace with your VPC ID
+  vpc_id      = "vpc-0b0bd10163043375d"
 
   ingress {
     description = "SSH"
@@ -56,7 +56,7 @@ resource "aws_security_group" "Rudra_Singh_sg" {
 # ---------------------
 resource "aws_instance" "Rudra_Singh_ec2" {
   ami                         = "ami-0d176f79571d18a8f"
-  instance_type               = "t2.micro"
+  instance_type               = "t3.micro"
   subnet_id                   = "subnet-05c56009aa1dd7894"
   associate_public_ip_address = true
   key_name                    = aws_key_pair.Rudra_Singh_key.key_name
@@ -68,7 +68,9 @@ resource "aws_instance" "Rudra_Singh_ec2" {
     Name = "Rudra_Singh_EC2"
   }
 
-  # Upload resume PDF
+  # ---------------------
+  # Upload resume file
+  # ---------------------
   provisioner "file" {
     source      = "${path.module}/rudra_singh.pdf"
     destination = "/home/ec2-user/rudra_singh.pdf"
@@ -81,10 +83,24 @@ resource "aws_instance" "Rudra_Singh_ec2" {
     }
   }
 
-  # Restart nginx after PDF upload
+  # ---------------------
+  # Restart nginx
+  # ---------------------
   provisioner "remote-exec" {
     inline = [
-      "sudo systemctl restart nginx"
+      "echo 'Waiting for nginx service to appear...'",
+      "for i in $(seq 1 12); do",
+      "  if sudo systemctl list-unit-files | grep -q nginx; then",
+      "    echo 'nginx unit found, restarting'; sudo systemctl restart nginx && exit 0",
+      "  else",
+      "    echo 'nginx not found yet, sleeping 5s'; sleep 5",
+      "  fi",
+      "done",
+      "echo 'nginx unit did not appear after wait; printing journal and exiting with 0'",
+      "sudo journalctl -u cloud-init -n 200 || true",
+      "sudo systemctl status nginx || true",
+      # don't fail the entire apply if service never appears; change exit 0->1 to fail
+      "exit 0"
     ]
 
     connection {
