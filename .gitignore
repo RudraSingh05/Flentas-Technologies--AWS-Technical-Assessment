@@ -1,0 +1,8 @@
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+
+
+ec2key.pub
+Rudra_Singh_.pem
